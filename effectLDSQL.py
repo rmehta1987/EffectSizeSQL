@@ -86,14 +86,16 @@ def unrollVEP(path_to_files: str, path_to_bcf: str, file_name_out: str):
     s = match[0].split('|')
 
     return s
-    
+
+Base = automap_base()
+'''
 class gnomadData(Base):
 
-    def __init__(self, name_of_table, bcf_dict)
+    def __init__(self, name_of_table, bcf_dict):
         super(Base, self).__init__
         self.__table__name = name_of_table
 
-
+'''
 
 vcf_file = '/home/rahul/PopGen/gnomAD_data/gnomad.exomes.r2.1.1.sites.1.vcf.bgz'
 out_file = 'ac_non_cancer_fin_bcftools_vep_full.vcf'
@@ -110,7 +112,7 @@ try:
     PASS = 'plight'
     HOST = '98.63.194.68'
     PORT = 5432
-    DB = 'ukheight'
+    DB = 'vcf'
     # url needs to start with postgresql:// instead of postgres:// 
     # see https://stackoverflow.com/questions/62688256/sqlalchemy-exc-nosuchmoduleerror-cant-load-plugin-sqlalchemy-dialectspostgre
     db_string = f"postgresql://{USER}:{PASS}@{HOST}:{PORT}/{DB}"  
