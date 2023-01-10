@@ -6,6 +6,8 @@ from sqlalchemy import Table, Column, Integer, String, MetaData
 import subprocess # for running plink
 import re
 import numpy as np
+import shlex
+from sqlalchemy.ext.automap import automap_base
 
 def filter_VCF_with_BCF(path_to_files: str, path_to_bcf: str, filter_args: dict, file_name_out: str):
     """
@@ -24,7 +26,6 @@ def filter_VCF_with_BCF(path_to_files: str, path_to_bcf: str, filter_args: dict,
     
     #location of plink /usr/bin/bcftools
     def execute_command(command):
-        import shlex
         s = shlex.shlex(command, posix=True)
         s.commenters= ''
         s.whitespace_split = True
@@ -52,15 +53,56 @@ def filter_VCF_with_BCF(path_to_files: str, path_to_bcf: str, filter_args: dict,
         
     execute_command('{} query -f \'{}\' {} > {}'.format(path_to_bcf, create_args, path_to_files, file_name_out))
     
-def filter_VCF_with_BCF(path_to_files: str, path_to_bcf: str, file_name_out: str):
+def unrollVEP(path_to_files: str, path_to_bcf: str, file_name_out: str):
+    """Unrolls the VEP field into separate columns
+
+    Args:
+        path_to_files (str): where the filtered vcf/file is 
+        path_to_vcf (str): need the path to original vcf file so we can see the header of the vcf to extract VEP field 
+        (bcftools view -h gnomad.exomes.r2.1.1.sites.1.vcf.bgz | grep -i 'ID=vep')
+        path_to_bcf (str): location of bcftools
+        file_name_out (str): output of unrolled and filtered VEP file
+    """    
+
+    #location of plink /usr/bin/bcftools
+    def execute_command(command):
+        process = subprocess.Popen(command, shell=True, stdout = subprocess.PIPE, stderr=subprocess.PIPE)
+        out, errs = process.communicate()
+        check_returncode = process.poll()
+        if check_returncode == 0:
+            print("Found header for vep")
+        else:
+            raise Exception("Something went wrong: {}".format(errs))
+        return out
+    
+    out = execute_command("{} view -h {} | grep -i \'ID=vep\'".format(path_to_bcf, path_to_files)).decode('utf-8')
+    # Get everything after keyword format in field and before ending double quote example: (##INFO..,Description="....Format: ....|Lof_info") -- note the space
+    # Regex will get "....|Lof_info
+    regex = r"(?<=Format: ).*?(?=\">)"
+    match = re.findall(regex, out) 
+    assert len(match) == 1, print("There should only be one large VEP field, multiple found {} {}".format(len(match), match))
+
+    # Begin to unroll
+    s = match[0].split('|')
+
+    return s
+    
+class gnomadData(Base):
+
+    def __init__(self, name_of_table, bcf_dict)
+        super(Base, self).__init__
+        self.__table__name = name_of_table
 
 
-vcf_file = '/home/rahul/PopGen/SimulationSFS/gnomAD_data/gnomad.exomes.r2.1.1.sites.1.vcf.bgz'
+
+vcf_file = '/home/rahul/PopGen/gnomAD_data/gnomad.exomes.r2.1.1.sites.1.vcf.bgz'
 out_file = 'ac_non_cancer_fin_bcftools_vep_full.vcf'
 bcf_dict = {'CHROM': '', 'POS': '', 'ID': '', 'REF': '', 'ALT': '', 'INFO': ['non_cancer_AC_fin', 'vep']}
 bcf_loc = '/usr/bin/bcftools'
 
-filter_VCF_with_BCF(vcf_file, bcf_loc, bcf_dict, out_file)
+# filter_VCF_with_BCF(vcf_file, bcf_loc, bcf_dict, out_file)
+unrollVEP(vcf_file, bcf_loc, out_file)
+
 '''
 
 try:
